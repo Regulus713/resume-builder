@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  background: #f4f4f5;
+}
+
+/* The rendered resume page */
+.resume-page {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+
+/* Inline editing affordances (screen only) */
+.editable {
+  cursor: text;
+  outline: none;
+  border-radius: 2px;
+  transition: box-shadow 0.12s ease;
+}
+
+@media screen {
+  .editable:hover {
+    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.4);
+  }
+
+  .editable:focus {
+    box-shadow: 0 0 0 1.5px rgba(37, 99, 235, 0.7);
+  }
+
+  .editable:empty {
+    display: inline-block;
+    min-width: 1.2em;
+    min-height: 1em;
+  }
+
+  .editable:empty::before {
+    content: attr(data-placeholder);
+    color: #b0b0b0;
+  }
+}
+
+@media print {
+  .editable:empty::before {
+    content: none !important;
+  }
+}
+
+/* Flash animation for newly added sidebar entries */
+@keyframes entry-flash {
+  0% {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.8);
+    background: rgba(37, 99, 235, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    background: rgba(249, 250, 251, 0.6);
+  }
+}
+
+.entry-flash {
+  animation: entry-flash 1.6s ease-out;
+}
+
+/* Print: only the dedicated print copy is rendered */
+#print-root {
+  display: none;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+  }
+
+  #app-root {
+    display: none !important;
+  }
+
+  #print-root {
+    display: block !important;
+  }
+
+  #print-root .resume-page {
+    box-shadow: none;
+    width: 100% !important;
+    min-height: 0 !important;
+  }
+}

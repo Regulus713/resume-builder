@@ -15,6 +15,13 @@ export const emptyResume: ResumeData = {
   education: [],
   skills: [],
   languages: [],
+  customFields: [],
+  customSections: [],
+  sectionTitles: {},
+  hiddenSections: [],
+  contactIcons: {},
+  levels: {},
+  levelStyles: {},
 }
 
 export const sampleResume: ResumeData = {
@@ -87,7 +94,58 @@ export const sampleResume: ResumeData = {
     'System Design',
     'Team Leadership',
   ],
-  languages: ['English (Fluent)', 'Spanish (Conversational)'],
+  languages: ['English', 'Spanish', 'French'],
+  customFields: [{ id: 'cf-1', label: 'GitHub', value: 'github.com/alexmorgan' }],
+  customSections: [
+    {
+      id: 'cs-1',
+      title: 'Projects',
+      type: 'entries',
+      column: 'main',
+      hidden: false,
+      items: [],
+      entries: [
+        {
+          id: 'ce-1',
+          title: 'Open-source design tokens CLI',
+          subtitle: 'Creator & maintainer',
+          date: '2022 – Present',
+          description:
+            'Converts Figma variables into typed CSS / TS tokens; 1.2k GitHub stars\nAdopted by 3 companies for their design systems',
+        },
+      ],
+      text: '',
+    },
+    {
+      id: 'cs-2',
+      title: 'Certifications',
+      type: 'tags',
+      column: 'side',
+      hidden: false,
+      items: ['AWS Solutions Architect', 'CKA (Kubernetes)'],
+      entries: [],
+      text: '',
+    },
+  ],
+  sectionTitles: {},
+  hiddenSections: [],
+  contactIcons: {},
+  levels: {
+    languages: { English: 5, Spanish: 3, French: 2 },
+    skills: {
+      TypeScript: 5,
+      React: 5,
+      'Node.js': 4,
+      GraphQL: 4,
+      PostgreSQL: 4,
+      AWS: 3,
+      Docker: 4,
+      'CI/CD': 4,
+      'System Design': 4,
+      'Team Leadership': 5,
+    },
+  },
+  levelStyles: { languages: 'dots' },
 }
 
 export const defaultDesign: DesignOptions = {
@@ -96,4 +154,5 @@ export const defaultDesign: DesignOptions = {
   font: 'inter',
   fontSize: 'md',
   pageSize: 'a4',
+  contactIcons: 'template',
 }

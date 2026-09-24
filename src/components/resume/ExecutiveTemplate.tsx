@@ -1,15 +1,18 @@
+import type { ReactNode } from 'react'
 import type { ResumeData, SectionKind } from '../../types'
+import CustomSections, { type CustomTheme } from './CustomSections'
 import { EditableLines, EditableText } from './Editable'
-import { AddRow } from './shared'
+import { EducationLevel, LevelList } from './Level'
+import { AddRow, EditableHeading, OptionalContactIcon } from './shared'
 import { contactItems, endDatePatch, updaters } from './utils'
 
 interface Props {
   resume: ResumeData
   onChange: (r: ResumeData) => void
-  onAdd: (section: SectionKind) => void
+  onAdd: (section: SectionKind, sectionId?: string) => void
 }
 
-function ExecHeading({ title }: { title: string }) {
+function ExecHeading({ title }: { title: ReactNode }) {
   return (
     <div>
       <h2 className="text-[0.72em] font-bold tracking-[0.22em] uppercase text-neutral-800">
@@ -20,10 +23,31 @@ function ExecHeading({ title }: { title: string }) {
   )
 }
 
+const customTheme: CustomTheme = {
+  section: ({ title, body, className }) => (
+    <section className={`mt-[1.9em] ${className}`}>
+      <ExecHeading title={title} />
+      <div className="mt-[0.9em]">{body}</div>
+    </section>
+  ),
+  text: 'text-[0.9em] leading-relaxed',
+  bullets:
+    'list-disc space-y-[0.2em] pl-[1.3em] text-[0.85em] leading-relaxed text-neutral-600 marker:text-neutral-400',
+  entry: {
+    wrap: 'mb-[1.3em] last:mb-0',
+    title: 'text-[0.95em] font-semibold',
+    subtitle: 'text-[0.85em] text-neutral-500',
+    date: 'text-[0.73em] tracking-[0.05em] text-neutral-500 uppercase',
+    bullets:
+      'mt-[0.4em] list-disc space-y-[0.2em] pl-[1.3em] text-[0.85em] leading-relaxed text-neutral-600 marker:text-neutral-400',
+  },
+}
+
 export default function ExecutiveTemplate({ resume, onChange, onAdd }: Props) {
   const { personal: p } = resume
-  const contacts = contactItems(p)
+  const contacts = contactItems(resume, onChange)
   const up = updaters(resume, onChange)
+  const skillStyle = up.levelStyle('skills')
 
   return (
     <div className="px-[18mm] py-[17mm] text-neutral-800">
@@ -49,19 +73,26 @@ export default function ExecutiveTemplate({ resume, onChange, onAdd }: Props) {
           }`}
         >
           {contacts.map((c) => (
-            <EditableText
-              key={c.field}
-              value={c.text}
-              onChange={up.personal(c.field)}
-              placeholder={c.placeholder}
-              className={c.text.trim() ? '' : 'print:hidden'}
-            />
+            <span
+              key={c.key}
+              className={`inline-flex items-center gap-[0.4em] ${c.text.trim() ? '' : 'print:hidden'}`}
+            >
+              <OptionalContactIcon name={c.icon} />
+              <EditableText
+                value={c.text}
+                onChange={c.onChange}
+                placeholder={c.placeholder}
+              />
+            </span>
           ))}
         </div>
       </header>
 
-      <section className={`mt-[1.9em] ${resume.summary ? '' : 'print:hidden'}`}>
-        <ExecHeading title="Profile" />
+      <section
+        hidden={!up.shown('summary')}
+        className={`mt-[1.9em] ${resume.summary ? '' : 'print:hidden'}`}
+      >
+        <ExecHeading title={<EditableHeading {...up.title('summary', 'Profile')} />} />
         <EditableText
           as="p"
           multiline
@@ -72,8 +103,11 @@ export default function ExecutiveTemplate({ resume, onChange, onAdd }: Props) {
         />
       </section>
 
-      <section className={`mt-[1.9em] ${resume.experience.length ? '' : 'print:hidden'}`}>
-        <ExecHeading title="Experience" />
+      <section
+        hidden={!up.shown('experience')}
+        className={`mt-[1.9em] ${resume.experience.length ? '' : 'print:hidden'}`}
+      >
+        <ExecHeading title={<EditableHeading {...up.title('experience', 'Experience')} />} />
         <div className="mt-[0.9em]">
           {resume.experience.map((exp) => {
             const set = up.exp(exp.id)
@@ -130,8 +164,11 @@ export default function ExecutiveTemplate({ resume, onChange, onAdd }: Props) {
         </div>
       </section>
 
-      <section className={`mt-[1.9em] ${resume.education.length ? '' : 'print:hidden'}`}>
-        <ExecHeading title="Education" />
+      <section
+        hidden={!up.shown('education')}
+        className={`mt-[1.9em] ${resume.education.length ? '' : 'print:hidden'}`}
+      >
+        <ExecHeading title={<EditableHeading {...up.title('education', 'Education')} />} />
         <div className="mt-[0.9em]">
           {resume.education.map((edu) => {
             const set = up.edu(edu.id)
@@ -176,6 +213,7 @@ export default function ExecutiveTemplate({ resume, onChange, onAdd }: Props) {
                     edu.description ? '' : 'print:hidden'
                   }`}
                 />
+                <EducationLevel {...up.eduLevel(edu)} className="text-(--accent)" />
               </div>
             )
           })}
@@ -184,26 +222,45 @@ export default function ExecutiveTemplate({ resume, onChange, onAdd }: Props) {
       </section>
 
       <section
+        hidden={!up.shown('skills')}
         className={`mt-[1.9em] break-inside-avoid ${resume.skills.length ? '' : 'print:hidden'}`}
       >
-        <ExecHeading title="Skills" />
-        <EditableText
-          as="p"
-          multiline
-          value={resume.skills.join(' · ')}
-          onChange={(v) =>
-            up.set(
-              'skills',
-              v
-                .split(/[·,\n]+/)
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
-          }
-          placeholder="TypeScript · React · Node.js…"
-          className="mt-[0.8em] block text-[0.87em] leading-relaxed whitespace-pre-line text-neutral-600"
-        />
+        <ExecHeading title={<EditableHeading {...up.title('skills', 'Skills')} />} />
+        {skillStyle === 'none' ? (
+          <EditableText
+            as="p"
+            multiline
+            value={resume.skills.join(' · ')}
+            onChange={(v) =>
+              up.list('skills')(
+                v
+                  .split(/[·,\n]+/)
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              )
+            }
+            placeholder="TypeScript · React · Node.js…"
+            className="mt-[0.8em] block text-[0.87em] leading-relaxed whitespace-pre-line text-neutral-600"
+          />
+        ) : (
+          <div className="mt-[0.8em]">
+            <LevelList
+              {...up.levelList('skills')}
+              style={skillStyle}
+              theme={customTheme}
+              placeholder="Skill"
+            />
+          </div>
+        )}
       </section>
+
+      <CustomSections
+        resume={resume}
+        onChange={onChange}
+        onAdd={onAdd}
+        column="all"
+        theme={customTheme}
+      />
     </div>
   )
 }

@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import DesignPanel from './components/DesignPanel'
 import EditorPanel from './components/EditorPanel'
 import ResumePreview from './components/resume/ResumePreview'
-import { blankEducation, blankExperience } from './components/resume/utils'
+import { UiIcon, type UiIconName } from './components/ui'
+import {
+  blankCustomEntry,
+  blankEducation,
+  blankExperience,
+} from './components/resume/utils'
 import { defaultDesign, emptyResume, sampleResume } from './sampleData'
 import type {
   DesignOptions,
@@ -22,6 +27,7 @@ export default function App() {
   const [resume, setResume] = usePersistentState<ResumeData>(
     'resume:data',
     sampleResume,
+    emptyResume,
   )
   const [design, setDesign] = usePersistentState<DesignOptions>(
     'resume:design',
@@ -32,9 +38,22 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   /** Add a new entry from the preview and reveal its fields in the side panel. */
-  const addEntry = (kind: SectionKind) => {
+  const addEntry = (kind: SectionKind, sectionId?: string) => {
     setTab('content')
-    if (kind === 'experience' || kind === 'education') {
+    if (kind === 'custom' && sectionId) {
+      // Only "entries" sections get a new blank entry; others just open in the panel.
+      const section = resume.customSections.find((s) => s.id === sectionId)
+      const id = section?.type === 'entries' ? crypto.randomUUID() : undefined
+      if (id) {
+        setResume((r) => ({
+          ...r,
+          customSections: r.customSections.map((s) =>
+            s.id === sectionId ? { ...s, entries: [...s.entries, blankCustomEntry(id)] } : s,
+          ),
+        }))
+      }
+      setFocusTarget({ kind, sectionId, id })
+    } else if (kind === 'experience' || kind === 'education') {
       const id = crypto.randomUUID()
       setResume((r) =>
         kind === 'experience'
@@ -96,56 +115,73 @@ export default function App() {
 
   return (
     <>
-      <div id="app-root" className="flex h-full flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white">
-              R
+      <div id="app-root" className="flex h-full flex-col gap-3 p-3">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 rounded-2xl border border-white/80 bg-white/80 px-3 shadow-float backdrop-blur-xl">
+          <div className="flex items-center gap-3 pl-1">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 text-white shadow-md ring-1 shadow-blue-600/30 ring-white/20 ring-inset">
+              <UiIcon name="file" className="h-5 w-5" strokeWidth={2} />
             </span>
-            <span className="text-sm font-semibold text-neutral-800">
-              Resume Builder
-            </span>
+            <div className="leading-tight">
+              <div className="text-[15px] font-bold tracking-tight text-neutral-900">
+                Resume Builder
+              </div>
+              <div className="text-xs text-neutral-500">
+                Design, edit &amp; export to PDF
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <HeaderButton onClick={() => fileRef.current?.click()}>
-              Import JSON
-            </HeaderButton>
-            <HeaderButton onClick={exportJson}>Export JSON</HeaderButton>
-            <HeaderButton onClick={() => setResume(sampleResume)}>
-              Load sample
-            </HeaderButton>
-            <HeaderButton onClick={() => setResume(emptyResume)}>
-              Clear
-            </HeaderButton>
+            <div className="flex items-center gap-0.5 rounded-full border border-neutral-200/70 bg-neutral-100/80 p-1">
+              <HeaderButton icon="upload" onClick={() => fileRef.current?.click()}>
+                Import JSON
+              </HeaderButton>
+              <HeaderButton icon="braces" onClick={exportJson}>
+                Export JSON
+              </HeaderButton>
+              <HeaderButton icon="sparkles" onClick={() => setResume(sampleResume)}>
+                Load sample
+              </HeaderButton>
+              <HeaderButton icon="trash" danger onClick={() => setResume(emptyResume)}>
+                Clear
+              </HeaderButton>
+            </div>
             <button
               type="button"
               onClick={() => window.print()}
-              className="ml-1 rounded-md bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
+              className="flex items-center gap-2 rounded-full bg-linear-to-b from-blue-500 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md ring-1 shadow-blue-600/30 ring-blue-700/20 transition text-shadow-lift hover:-translate-y-px hover:from-blue-500 hover:to-blue-700 hover:shadow-lg hover:shadow-blue-600/35 active:translate-y-0"
             >
+              <UiIcon name="download" strokeWidth={2.2} />
               Download PDF
             </button>
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1">
-          <aside className="flex w-[400px] shrink-0 flex-col border-r border-neutral-200 bg-white">
-            <div className="flex border-b border-neutral-200">
-              {(['content', 'design'] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTab(t)}
-                  className={`flex-1 py-2.5 text-sm font-semibold capitalize transition-colors ${
-                    tab === t
-                      ? 'border-b-2 border-blue-600 text-blue-600'
-                      : 'text-neutral-500 hover:text-neutral-800'
+        <div className="flex min-h-0 flex-1 gap-3">
+          <aside className="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-float backdrop-blur-xl">
+            <div className="p-3 pb-2">
+              <div className="relative grid grid-cols-2 rounded-full border border-neutral-200/70 bg-neutral-100/80 p-1">
+                <span
+                  aria-hidden
+                  className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-white shadow-sm ring-1 ring-neutral-900/5 transition-transform duration-300 ease-out ${
+                    tab === 'design' ? 'translate-x-full' : ''
                   }`}
-                >
-                  {t}
-                </button>
-              ))}
+                />
+                {(['content', 'design'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTab(t)}
+                    className={`relative flex items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold capitalize transition-colors ${
+                      tab === t ? 'text-blue-600' : 'text-neutral-500 hover:text-neutral-800'
+                    }`}
+                  >
+                    <UiIcon name={t === 'content' ? 'pencil' : 'palette'} />
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="soft-scroll flex-1 overflow-y-auto px-3 pt-1 pb-3">
               {tab === 'content' ? (
                 <EditorPanel
                   resume={resume}
@@ -193,19 +229,27 @@ export default function App() {
 }
 
 function HeaderButton({
+  icon,
   onClick,
+  danger,
   children,
 }: {
+  icon: UiIconName
   onClick: () => void
+  danger?: boolean
   children: string
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 hover:border-neutral-300 hover:text-neutral-900"
+      title={children}
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-neutral-600 transition hover:bg-white hover:shadow-sm ${
+        danger ? 'hover:text-red-600' : 'hover:text-neutral-900'
+      }`}
     >
-      {children}
+      <UiIcon name={icon} />
+      <span className="hidden xl:inline">{children}</span>
     </button>
   )
 }
@@ -219,7 +263,7 @@ function PreviewPane({
   resume: ResumeData
   design: DesignOptions
   onChange: (r: ResumeData) => void
-  onAdd: (section: SectionKind) => void
+  onAdd: (section: SectionKind, sectionId?: string) => void
 }) {
   const mainRef = useRef<HTMLElement>(null)
   const [scale, setScale] = useState(1)
@@ -240,10 +284,13 @@ function PreviewPane({
   return (
     <main
       ref={mainRef}
-      className="flex-1 overflow-auto bg-neutral-200/70 px-8 py-10"
+      className="preview-canvas soft-scroll flex-1 overflow-auto rounded-3xl border border-white/70 px-8 pt-6 pb-12 shadow-[inset_0_1px_3px_rgb(15_23_42/0.06)]"
     >
-      <p className="mx-auto mb-4 w-fit text-xs text-neutral-400">
-        Tip: click any text on the resume to edit it directly
+      <p className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full border border-white bg-white/85 py-1.5 pr-3.5 pl-1.5 text-xs text-neutral-600 shadow-card backdrop-blur">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+          <UiIcon name="pencil" className="h-3 w-3" strokeWidth={2.2} />
+        </span>
+        Click any text on the resume to edit it directly
       </p>
       <div className="mx-auto w-fit" style={{ zoom: scale }}>
         <ResumePreview

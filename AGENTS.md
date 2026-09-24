@@ -62,6 +62,65 @@ Every text field on the preview is directly editable — click and type.
   `endDatePatch` maps typed "Present"/"Current"/"Now" back to the `current`
   flag.
 
+## Custom sections, custom fields, section control
+
+- Data (`types.ts`): `customFields` (label/value contact fields),
+  `customSections` (`CustomSection`: `type` = tags | bullets | entries | text,
+  `column` = main | side, `hidden`; `items`/`entries`/`text` are all stored so
+  switching `type` is lossless), `sectionTitles` (built-in heading overrides;
+  missing = template default) and `hiddenSections` (built-in ids).
+- `usePersistentState(key, initial, mergeBase)`: resume data merges old saves
+  over `emptyResume` (not the sample) so demo sections don't leak in.
+- Templates: `contactItems(resume, onChange)` returns built-in + custom fields
+  with their own `onChange`. Built-in headings use
+  `<EditableHeading {...up.title('skills', 'Skills')} />`; built-in section
+  roots get `hidden={!up.shown('skills')}` (the `hidden` attribute, so no
+  re-indenting). Custom sections render via
+  `<CustomSections column="all" | "main" | "side" theme={…} />`; each template
+  defines module-level `CustomTheme` objects (a `section` render function
+  reproducing its heading style + chip/bullet/entry classes). Single-column
+  templates use `"all"`; two-column ones render `"side"` in the rail and
+  `"main"` in the main column.
+- Preview "+ Add entry" in a custom section calls `onAdd('custom', sectionId)`.
+- Panel: `ui.tsx` `Section` supports `rename` (pencil / double-click) and
+  `onToggleHidden` (eye). `ListEditor` edits string lists (Enter adds, Backspace
+  on empty removes, Alt+↑/↓ reorders, empties pruned on blur). Presets and
+  type metadata live in `components/sectionPresets.ts`.
+- Contact icons: `resume/brandIcons.ts` holds brand logos (GitHub, Gmail,
+  Facebook, X, …) as fill paths from Simple Icons (CC0; LinkedIn/CodePen/
+  Outlook from the v10.0.0 release since they were removed upstream), each
+  with a `match` regex. `autoContactIcon(key, label, value)` in `utils.ts`
+  picks an icon from the label/value; `resume.contactIcons[key]` stores user
+  overrides (key = built-in field name or custom field id). `Icon` in
+  `shared.tsx` renders both outline and brand icons.
+- Design → Contact icons (`design.contactIcons`: template | show | hide) is
+  applied via `data-contact-icons` on `.resume-page` + CSS in `index.css`:
+  every contact icon carries `contact-icon`; templates designed without icons
+  render `<OptionalContactIcon>` (class `contact-icon-optional`), shown only
+  in "show" mode. The panel's `IconPicker.tsx` is the searchable picker.
+- Levels (1–5): `LevelStyle` = none | stars | dots ("Bulbs") | bar ("Slider")
+  | blocks | text ("Words"). Per-section style in `resume.levelStyles`
+  (skills / languages / education); item levels in `resume.levels.skills` /
+  `.languages`, keyed by trimmed item text; education uses
+  `EducationItem.level`; custom tag/bullet sections carry their own
+  `levelStyle` + `levels`. Always write lists through `up.list('skills')` /
+  `up.customItems(id)` — they call `remapLevels` so a level follows its item
+  through renames and drops with it on delete.
+- `resume/Level.tsx`: `LevelIndicator` (interactive: click/hover, arrow
+  keys, click current level to clear; unset = screen-only ghost),
+  `LevelList` (name + indicator rows styled from the template's
+  `CustomTheme`; 1 column when `entry.stacked`, else 2; `theme.levelColor`
+  overrides the accent, `dark` inherits text color), `EducationLevel`.
+  Templates switch skills via `skillStyle === 'none' ? existing : <LevelList>`.
+- Built-in Languages is rendered by `<CustomSections>` (side column /
+  single-column flow) in every template except Timeline, which places it in
+  its rail and passes `includeLanguages={false}`.
+- Panel: `LevelControls.tsx` (`LevelStylePicker` with live previews,
+  `LevelInput` bulbs) + `ListEditor`'s `renderExtra` slot.
+- Vite's watcher can miss edits made by external tools; if the preview looks
+  stale, restart the dev server (kill the `node … vite` process on :5173 —
+  killing the npm shell alone leaves it running).
+
 ## How printing/PDF works
 
 - `#print-root` renders a second copy of `ResumePreview`, `display:none` on
@@ -71,6 +130,22 @@ Every text field on the preview is directly editable — click and type.
 - `print-color-adjust: exact` on `.resume-page` keeps accent colors in the PDF.
 - `document.title` is set to "<Name> – Resume" so Save-as-PDF gets a good
   filename.
+
+## App UI (chrome) styling
+
+- Floating, rounded layout: glass header (`rounded-2xl`), sidebar card
+  (`rounded-3xl`), dotted preview canvas (`.preview-canvas`, `rounded-3xl`).
+- Theme tokens in `index.css` `@theme`: `shadow-card`, `shadow-float`,
+  `text-shadow-soft`, `text-shadow-lift` (use `lift` for white text on color).
+- A small text shadow is applied to all of `#app-root`; `.resume-page` resets
+  it to `none` so the document (and PDF) stays crisp. On screen the page gets
+  rounded corners + layered shadow via `@media screen` only.
+- `ui.tsx` exports `UiIcon` (stroke icon set, `UiIconName`), inputs,
+  `Section` (card with `icon` + optional `badge` count), `ItemCard`,
+  `AddButton`. Pill shapes (`rounded-full`) for buttons/segmented controls,
+  `rounded-xl`/`rounded-2xl` for inputs and cards.
+- Screenshots for visual checks: headless Chrome at
+  `C:\Program Files\Google\Chrome\Application\chrome.exe --headless=new --screenshot`.
 
 ## Conventions
 

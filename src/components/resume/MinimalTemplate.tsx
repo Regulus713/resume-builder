@@ -1,18 +1,45 @@
 import type { ResumeData, SectionKind } from '../../types'
+import CustomSections, { type CustomTheme } from './CustomSections'
 import { EditableLines, EditableText } from './Editable'
-import { AddRow, SectionHeading } from './shared'
+import { EducationLevel, LevelList } from './Level'
+import { AddRow, EditableHeading, OptionalContactIcon, SectionHeading } from './shared'
 import { contactItems, endDatePatch, updaters } from './utils'
 
 interface Props {
   resume: ResumeData
   onChange: (r: ResumeData) => void
-  onAdd: (section: SectionKind) => void
+  onAdd: (section: SectionKind, sectionId?: string) => void
+}
+
+const bullets =
+  'list-disc space-y-[0.1em] pl-[1.3em] text-[0.84em] leading-relaxed text-neutral-600 marker:text-neutral-300'
+
+const customTheme: CustomTheme = {
+  section: ({ title, body, className }) => (
+    <section className={`mt-[1.6em] ${className}`}>
+      <SectionHeading
+        title={title}
+        className="text-[0.7em] font-semibold tracking-[0.2em] text-(--accent)"
+      />
+      <div className="mt-[0.6em]">{body}</div>
+    </section>
+  ),
+  text: 'text-[0.88em] leading-relaxed text-neutral-700',
+  bullets,
+  entry: {
+    wrap: 'mb-[1em] last:mb-0',
+    title: 'text-[0.92em] font-semibold',
+    subtitle: 'text-[0.82em] text-neutral-500',
+    date: 'text-[0.72em] text-neutral-400',
+    bullets: `mt-[0.3em] ${bullets}`,
+  },
 }
 
 export default function MinimalTemplate({ resume, onChange, onAdd }: Props) {
   const { personal: p } = resume
-  const contacts = contactItems(p)
+  const contacts = contactItems(resume, onChange)
   const up = updaters(resume, onChange)
+  const skillStyle = up.levelStyle('skills')
 
   return (
     <div className="px-[18mm] py-[16mm] text-neutral-800">
@@ -38,20 +65,27 @@ export default function MinimalTemplate({ resume, onChange, onAdd }: Props) {
           }`}
         >
           {contacts.map((c) => (
-            <EditableText
-              key={c.field}
-              value={c.text}
-              onChange={up.personal(c.field)}
-              placeholder={c.placeholder}
-              className={c.text.trim() ? '' : 'print:hidden'}
-            />
+            <span
+              key={c.key}
+              className={`inline-flex items-center gap-[0.4em] ${c.text.trim() ? '' : 'print:hidden'}`}
+            >
+              <OptionalContactIcon name={c.icon} />
+              <EditableText
+                value={c.text}
+                onChange={c.onChange}
+                placeholder={c.placeholder}
+              />
+            </span>
           ))}
         </div>
       </header>
 
-      <section className={`mt-[1.6em] ${resume.summary ? '' : 'print:hidden'}`}>
+      <section
+        hidden={!up.shown('summary')}
+        className={`mt-[1.6em] ${resume.summary ? '' : 'print:hidden'}`}
+      >
         <SectionHeading
-          title="Summary"
+          title={<EditableHeading {...up.title('summary', 'Summary')} />}
           className="text-[0.7em] font-semibold tracking-[0.2em] text-(--accent)"
         />
         <EditableText
@@ -64,9 +98,12 @@ export default function MinimalTemplate({ resume, onChange, onAdd }: Props) {
         />
       </section>
 
-      <section className={`mt-[1.6em] ${resume.experience.length ? '' : 'print:hidden'}`}>
+      <section
+        hidden={!up.shown('experience')}
+        className={`mt-[1.6em] ${resume.experience.length ? '' : 'print:hidden'}`}
+      >
         <SectionHeading
-          title="Experience"
+          title={<EditableHeading {...up.title('experience', 'Experience')} />}
           className="text-[0.7em] font-semibold tracking-[0.2em] text-(--accent)"
         />
         <div className="mt-[0.7em]">
@@ -124,9 +161,12 @@ export default function MinimalTemplate({ resume, onChange, onAdd }: Props) {
         </div>
       </section>
 
-      <section className={`mt-[1.6em] ${resume.education.length ? '' : 'print:hidden'}`}>
+      <section
+        hidden={!up.shown('education')}
+        className={`mt-[1.6em] ${resume.education.length ? '' : 'print:hidden'}`}
+      >
         <SectionHeading
-          title="Education"
+          title={<EditableHeading {...up.title('education', 'Education')} />}
           className="text-[0.7em] font-semibold tracking-[0.2em] text-(--accent)"
         />
         <div className="mt-[0.7em]">
@@ -172,6 +212,7 @@ export default function MinimalTemplate({ resume, onChange, onAdd }: Props) {
                     edu.description ? '' : 'print:hidden'
                   }`}
                 />
+                <EducationLevel {...up.eduLevel(edu)} className="text-(--accent)" />
               </div>
             )
           })}
@@ -180,29 +221,48 @@ export default function MinimalTemplate({ resume, onChange, onAdd }: Props) {
       </section>
 
       <section
+        hidden={!up.shown('skills')}
         className={`mt-[1.6em] break-inside-avoid ${resume.skills.length ? '' : 'print:hidden'}`}
       >
         <SectionHeading
-          title="Skills"
+          title={<EditableHeading {...up.title('skills', 'Skills')} />}
           className="text-[0.7em] font-semibold tracking-[0.2em] text-(--accent)"
         />
-        <EditableText
-          as="p"
-          multiline
-          value={resume.skills.join(' · ')}
-          onChange={(v) =>
-            up.set(
-              'skills',
-              v
-                .split(/[·,\n]+/)
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
-          }
-          placeholder="TypeScript · React · Node.js…"
-          className="mt-[0.6em] block text-[0.85em] leading-relaxed whitespace-pre-line text-neutral-600"
-        />
+        {skillStyle === 'none' ? (
+          <EditableText
+            as="p"
+            multiline
+            value={resume.skills.join(' · ')}
+            onChange={(v) =>
+              up.list('skills')(
+                v
+                  .split(/[·,\n]+/)
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              )
+            }
+            placeholder="TypeScript · React · Node.js…"
+            className="mt-[0.6em] block text-[0.85em] leading-relaxed whitespace-pre-line text-neutral-600"
+          />
+        ) : (
+          <div className="mt-[0.6em]">
+            <LevelList
+              {...up.levelList('skills')}
+              style={skillStyle}
+              theme={customTheme}
+              placeholder="Skill"
+            />
+          </div>
+        )}
       </section>
+
+      <CustomSections
+        resume={resume}
+        onChange={onChange}
+        onAdd={onAdd}
+        column="all"
+        theme={customTheme}
+      />
     </div>
   )
 }

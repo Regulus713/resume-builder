@@ -1,12 +1,16 @@
+import type { ReactNode } from 'react'
 import {
   ACCENT_PRESETS,
   FONT_LABELS,
+  FONT_STACKS,
+  type ContactIconMode,
   type DesignOptions,
   type FontId,
   type FontSize,
   type PageSize,
   type TemplateId,
 } from '../types'
+import { Segmented, UiIcon, type UiIconName } from './ui'
 
 const TEMPLATES: { id: TemplateId; label: string; desc: string }[] = [
   { id: 'classic', label: 'Classic', desc: 'Single column, traditional' },
@@ -32,12 +36,49 @@ const PAGES: { id: PageSize; label: string }[] = [
   { id: 'a4', label: 'A4' },
   { id: 'letter', label: 'US Letter' },
 ]
+const ICON_MODES: { id: ContactIconMode; label: string; icon: UiIconName }[] = [
+  { id: 'template', label: 'Template', icon: 'layout' },
+  { id: 'show', label: 'Show', icon: 'eye' },
+  { id: 'hide', label: 'Hide', icon: 'eyeOff' },
+]
 
-function Label({ children }: { children: string }) {
+function Group({
+  title,
+  icon,
+  value,
+  children,
+}: {
+  title: string
+  icon: UiIconName
+  /** Current selection, shown on the right of the heading. */
+  value?: string
+  children: ReactNode
+}) {
   return (
-    <div className="mb-2 text-xs font-semibold tracking-wide text-neutral-500 uppercase">
+    <section className="rounded-2xl border border-neutral-200/70 bg-white p-3.5 shadow-card">
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+          <UiIcon name={icon} className="h-3.5 w-3.5" strokeWidth={2} />
+        </span>
+        <h3 className="flex-1 text-sm font-semibold text-neutral-800">{title}</h3>
+        {value && (
+          <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-500">
+            {value}
+          </span>
+        )}
+      </div>
       {children}
-    </div>
+    </section>
+  )
+}
+
+function SelectedCheck({ className = '' }: { className?: string }) {
+  return (
+    <span
+      className={`flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm shadow-blue-600/40 ${className}`}
+    >
+      <UiIcon name="check" className="h-3 w-3" strokeWidth={3} />
+    </span>
   )
 }
 
@@ -50,130 +91,137 @@ export default function DesignPanel({
 }) {
   const set = <K extends keyof DesignOptions>(key: K, value: DesignOptions[K]) =>
     onChange({ ...design, [key]: value })
+  const isCustomColor = !ACCENT_PRESETS.includes(design.accentColor)
 
   return (
-    <div className="space-y-6 p-4">
-      <div>
-        <Label>Template</Label>
-        <div className="grid grid-cols-4 gap-2">
-          {TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => set('template', t.id)}
-              className={`rounded-lg border p-2 text-left transition-colors ${
-                design.template === t.id
-                  ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
-                  : 'border-neutral-200 bg-white hover:border-neutral-300'
-              }`}
-            >
-              <TemplateThumb id={t.id} active={design.template === t.id} />
-              <div className="mt-1.5 text-xs font-semibold text-neutral-800">
-                {t.label}
-              </div>
-              <div className="text-[10px] leading-tight text-neutral-500">
-                {t.desc}
-              </div>
-            </button>
-          ))}
+    <div className="space-y-2.5">
+      <Group
+        title="Template"
+        icon="layout"
+        value={TEMPLATES.find((t) => t.id === design.template)?.label}
+      >
+        <div className="grid grid-cols-3 gap-2.5">
+          {TEMPLATES.map((t) => {
+            const active = design.template === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => set('template', t.id)}
+                className={`group relative flex flex-col rounded-2xl border p-2 text-left transition ${
+                  active
+                    ? 'border-blue-500 bg-blue-50/60 ring-4 ring-blue-500/15'
+                    : 'border-neutral-200 bg-white hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-card'
+                }`}
+              >
+                {active && <SelectedCheck className="absolute top-3 right-3" />}
+                <TemplateThumb id={t.id} active={active} />
+                <div className="mt-2 px-0.5 text-xs font-semibold text-neutral-800">
+                  {t.label}
+                </div>
+                <div className="px-0.5 text-[10px] leading-tight text-neutral-500">
+                  {t.desc}
+                </div>
+              </button>
+            )
+          })}
         </div>
-      </div>
+      </Group>
 
-      <div>
-        <Label>Accent color</Label>
-        <div className="flex flex-wrap items-center gap-2">
+      <Group title="Accent color" icon="droplet" value={design.accentColor.toUpperCase()}>
+        <div className="grid grid-cols-9 gap-2 p-0.5">
           {ACCENT_PRESETS.map((c) => (
             <button
               key={c}
               type="button"
               aria-label={`Accent ${c}`}
               onClick={() => set('accentColor', c)}
-              className={`h-7 w-7 rounded-full border transition-transform hover:scale-110 ${
-                design.accentColor === c
-                  ? 'ring-2 ring-neutral-800 ring-offset-2'
-                  : 'border-black/10'
+              className={`flex aspect-square w-full items-center justify-center rounded-full text-white shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1),0_1px_2px_rgb(0_0_0/0.15)] transition hover:scale-110 ${
+                design.accentColor === c ? 'ring-2 ring-neutral-800/80 ring-offset-2' : ''
               }`}
               style={{ backgroundColor: c }}
-            />
+            >
+              {design.accentColor === c && (
+                <UiIcon name="check" className="h-3.5 w-3.5" strokeWidth={3} />
+              )}
+            </button>
           ))}
           <label
-            className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full border border-dashed border-neutral-400 transition-transform hover:scale-110"
+            className={`relative flex aspect-square w-full cursor-pointer items-center justify-center rounded-full text-white shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1),0_1px_2px_rgb(0_0_0/0.15)] transition hover:scale-110 ${
+              isCustomColor ? 'ring-2 ring-neutral-800/80 ring-offset-2' : ''
+            }`}
+            style={{
+              background: isCustomColor
+                ? design.accentColor
+                : 'conic-gradient(#ef4444, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #ef4444)',
+            }}
             title="Custom color"
           >
             <input
               type="color"
               value={design.accentColor}
               onChange={(e) => set('accentColor', e.target.value)}
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              className="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
             />
-            <span className="flex h-full w-full items-center justify-center text-xs font-bold text-neutral-500">
-              +
-            </span>
+            <UiIcon
+              name={isCustomColor ? 'check' : 'plus'}
+              className="pointer-events-none h-3.5 w-3.5"
+              strokeWidth={3}
+            />
           </label>
         </div>
+      </Group>
+
+      <Group title="Font" icon="type" value={FONT_LABELS[design.font]}>
+        <div className="grid grid-cols-2 gap-2.5">
+          {FONTS.map((f) => {
+            const active = design.font === f
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => set('font', f)}
+                className={`relative flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+                  active
+                    ? 'border-blue-500 bg-blue-50/60 ring-4 ring-blue-500/15'
+                    : 'border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-card'
+                }`}
+              >
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base font-semibold ${
+                    active ? 'bg-white text-blue-600 shadow-sm' : 'bg-neutral-100 text-neutral-800'
+                  }`}
+                  style={{ fontFamily: FONT_STACKS[f] }}
+                >
+                  Aa
+                </span>
+                <span className="text-xs font-medium text-neutral-700">{FONT_LABELS[f]}</span>
+              </button>
+            )
+          })}
+        </div>
+      </Group>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        <Group title="Size" icon="textSize">
+          <Segmented options={SIZES} value={design.fontSize} onSelect={(v) => set('fontSize', v)} />
+        </Group>
+        <Group title="Page" icon="page">
+          <Segmented options={PAGES} value={design.pageSize} onSelect={(v) => set('pageSize', v)} />
+        </Group>
       </div>
 
-      <div>
-        <Label>Font</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {FONTS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => set('font', f)}
-              className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                design.font === f
-                  ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
-                  : 'border-neutral-200 bg-white hover:border-neutral-300'
-              }`}
-              style={{ fontFamily: FONT_LABELS[f] === 'Georgia' ? 'Georgia' : undefined }}
-            >
-              <span className="block font-semibold text-neutral-800">Aa</span>
-              <span className="text-xs text-neutral-500">{FONT_LABELS[f]}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <Label>Font size</Label>
-        <div className="flex overflow-hidden rounded-md border border-neutral-200">
-          {SIZES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => set('fontSize', s.id)}
-              className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
-                design.fontSize === s.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-neutral-600 hover:bg-neutral-50'
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <Label>Page size</Label>
-        <div className="flex overflow-hidden rounded-md border border-neutral-200">
-          {PAGES.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => set('pageSize', p.id)}
-              className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
-                design.pageSize === p.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-neutral-600 hover:bg-neutral-50'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Group title="Contact icons" icon="link">
+        <Segmented
+          options={ICON_MODES}
+          value={design.contactIcons}
+          onSelect={(v) => set('contactIcons', v)}
+        />
+        <p className="mt-2 text-[11px] leading-snug text-neutral-400">
+          &ldquo;Template&rdquo; shows icons only in templates designed with them.
+          Change each field&apos;s icon in Content → Personal details.
+        </p>
+      </Group>
     </div>
   )
 }
@@ -182,7 +230,10 @@ function TemplateThumb({ id, active }: { id: TemplateId; active: boolean }) {
   const c = active ? '#3b82f6' : '#cbd5e1'
   const t = '#94a3b8'
   return (
-    <svg viewBox="0 0 60 80" className="w-full rounded-sm border border-neutral-200 bg-white">
+    <svg
+      viewBox="0 0 60 80"
+      className="w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xs"
+    >
       {id === 'classic' && (
         <>
           <rect x="10" y="8" width="40" height="5" rx="1" fill={t} />

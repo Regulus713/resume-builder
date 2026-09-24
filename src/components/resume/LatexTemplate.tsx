@@ -1,15 +1,18 @@
+import type { ReactNode } from 'react'
 import type { ResumeData, SectionKind } from '../../types'
+import CustomSections, { type CustomTheme } from './CustomSections'
 import { EditableLines, EditableText } from './Editable'
-import { AddRow } from './shared'
+import { EducationLevel, LevelList } from './Level'
+import { AddRow, EditableHeading, OptionalContactIcon } from './shared'
 import { contactItems, endDatePatch, updaters } from './utils'
 
 interface Props {
   resume: ResumeData
   onChange: (r: ResumeData) => void
-  onAdd: (section: SectionKind) => void
+  onAdd: (section: SectionKind, sectionId?: string) => void
 }
 
-function LatexHeading({ title }: { title: string }) {
+function LatexHeading({ title }: { title: ReactNode }) {
   return (
     <h2 className="border-b border-neutral-800 pb-[0.15em] text-[0.85em] font-bold tracking-[0.12em] uppercase">
       {title}
@@ -17,10 +20,34 @@ function LatexHeading({ title }: { title: string }) {
   )
 }
 
+const bullets =
+  'list-disc space-y-[0.1em] pl-[1.4em] text-[0.82em] leading-snug marker:text-neutral-500'
+
+const customTheme: CustomTheme = {
+  section: ({ title, body, className }) => (
+    <section className={`mt-[1.1em] ${className}`}>
+      <LatexHeading title={title} />
+      <div className="mt-[0.5em]">{body}</div>
+    </section>
+  ),
+  tagSeparator: ', ',
+  levelColor: 'text-neutral-900',
+  text: 'text-[0.85em] leading-relaxed',
+  bullets,
+  entry: {
+    wrap: 'mb-[0.9em] last:mb-0',
+    title: 'text-[0.88em] font-bold',
+    subtitle: 'text-[0.85em] italic',
+    date: 'text-[0.8em] font-bold',
+    bullets: `mt-[0.3em] ${bullets}`,
+  },
+}
+
 export default function LatexTemplate({ resume, onChange, onAdd }: Props) {
   const { personal: p } = resume
-  const contacts = contactItems(p)
+  const contacts = contactItems(resume, onChange)
   const up = updaters(resume, onChange)
+  const skillStyle = up.levelStyle('skills')
 
   return (
     <div className="px-[14mm] py-[12mm] text-neutral-900">
@@ -46,11 +73,15 @@ export default function LatexTemplate({ resume, onChange, onAdd }: Props) {
           }`}
         >
           {contacts.map((c, i) => (
-            <span key={c.field} className={c.text.trim() ? '' : 'print:hidden'}>
-              {i > 0 && <span className="mx-[0.45em] text-neutral-400">|</span>}
+            <span
+              key={c.key}
+              className={`inline-flex items-center gap-[0.35em] ${c.text.trim() ? '' : 'print:hidden'}`}
+            >
+              {i > 0 && <span className="mr-[0.1em] ml-[0.45em] text-neutral-400">|</span>}
+              <OptionalContactIcon name={c.icon} />
               <EditableText
                 value={c.text}
-                onChange={up.personal(c.field)}
+                onChange={c.onChange}
                 placeholder={c.placeholder}
               />
             </span>
@@ -58,8 +89,11 @@ export default function LatexTemplate({ resume, onChange, onAdd }: Props) {
         </div>
       </header>
 
-      <section className={`mt-[1.1em] ${resume.summary ? '' : 'print:hidden'}`}>
-        <LatexHeading title="Summary" />
+      <section
+        hidden={!up.shown('summary')}
+        className={`mt-[1.1em] ${resume.summary ? '' : 'print:hidden'}`}
+      >
+        <LatexHeading title={<EditableHeading {...up.title('summary', 'Summary')} />} />
         <EditableText
           as="p"
           multiline
@@ -70,8 +104,11 @@ export default function LatexTemplate({ resume, onChange, onAdd }: Props) {
         />
       </section>
 
-      <section className={`mt-[1.1em] ${resume.experience.length ? '' : 'print:hidden'}`}>
-        <LatexHeading title="Experience" />
+      <section
+        hidden={!up.shown('experience')}
+        className={`mt-[1.1em] ${resume.experience.length ? '' : 'print:hidden'}`}
+      >
+        <LatexHeading title={<EditableHeading {...up.title('experience', 'Experience')} />} />
         <div className="mt-[0.5em]">
           {resume.experience.map((exp) => {
             const set = up.exp(exp.id)
@@ -126,8 +163,11 @@ export default function LatexTemplate({ resume, onChange, onAdd }: Props) {
         </div>
       </section>
 
-      <section className={`mt-[1.1em] ${resume.education.length ? '' : 'print:hidden'}`}>
-        <LatexHeading title="Education" />
+      <section
+        hidden={!up.shown('education')}
+        className={`mt-[1.1em] ${resume.education.length ? '' : 'print:hidden'}`}
+      >
+        <LatexHeading title={<EditableHeading {...up.title('education', 'Education')} />} />
         <div className="mt-[0.5em]">
           {resume.education.map((edu) => {
             const set = up.edu(edu.id)
@@ -178,6 +218,7 @@ export default function LatexTemplate({ resume, onChange, onAdd }: Props) {
                     edu.description ? '' : 'print:hidden'
                   }`}
                 />
+                <EducationLevel {...up.eduLevel(edu)} className="" />
               </div>
             )
           })}
@@ -186,26 +227,45 @@ export default function LatexTemplate({ resume, onChange, onAdd }: Props) {
       </section>
 
       <section
+        hidden={!up.shown('skills')}
         className={`mt-[1.1em] break-inside-avoid ${resume.skills.length ? '' : 'print:hidden'}`}
       >
-        <LatexHeading title="Skills" />
-        <EditableText
-          as="p"
-          multiline
-          value={resume.skills.join(', ')}
-          onChange={(v) =>
-            up.set(
-              'skills',
-              v
-                .split(/[·,\n]+/)
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
-          }
-          placeholder="TypeScript, React, Node.js…"
-          className="mt-[0.5em] block text-[0.82em] leading-relaxed whitespace-pre-line"
-        />
+        <LatexHeading title={<EditableHeading {...up.title('skills', 'Skills')} />} />
+        {skillStyle === 'none' ? (
+          <EditableText
+            as="p"
+            multiline
+            value={resume.skills.join(', ')}
+            onChange={(v) =>
+              up.list('skills')(
+                v
+                  .split(/[·,\n]+/)
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              )
+            }
+            placeholder="TypeScript, React, Node.js…"
+            className="mt-[0.5em] block text-[0.82em] leading-relaxed whitespace-pre-line"
+          />
+        ) : (
+          <div className="mt-[0.5em]">
+            <LevelList
+              {...up.levelList('skills')}
+              style={skillStyle}
+              theme={customTheme}
+              placeholder="Skill"
+            />
+          </div>
+        )}
       </section>
+
+      <CustomSections
+        resume={resume}
+        onChange={onChange}
+        onAdd={onAdd}
+        column="all"
+        theme={customTheme}
+      />
     </div>
   )
 }

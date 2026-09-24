@@ -1,18 +1,43 @@
 import type { ResumeData, SectionKind } from '../../types'
+import CustomSections, { type CustomTheme } from './CustomSections'
 import { EditableChips, EditableLines, EditableText } from './Editable'
-import { AddRow, Icon, SectionHeading } from './shared'
+import { EducationLevel, LevelList } from './Level'
+import { AddRow, EditableHeading, Icon, SectionHeading } from './shared'
 import { contactItems, endDatePatch, updaters } from './utils'
 
 interface Props {
   resume: ResumeData
   onChange: (r: ResumeData) => void
-  onAdd: (section: SectionKind) => void
+  onAdd: (section: SectionKind, sectionId?: string) => void
+}
+
+const bullets =
+  'list-disc space-y-[0.15em] pl-[1.3em] text-[0.85em] leading-relaxed text-neutral-600 marker:text-neutral-400'
+
+const customTheme: CustomTheme = {
+  section: ({ title, body, className }) => (
+    <section className={`mt-[1.5em] ${className}`}>
+      <SectionHeading title={title} className="text-(--accent)" />
+      <div className="mt-[0.7em]">{body}</div>
+    </section>
+  ),
+  chip: 'rounded-md bg-(--accent)/10 px-[0.8em] py-[0.3em] text-[0.78em] font-medium text-(--accent)',
+  text: 'text-[0.88em] leading-relaxed',
+  bullets,
+  entry: {
+    wrap: 'mb-[1.1em] last:mb-0',
+    title: 'text-[0.95em] font-semibold',
+    subtitle: 'text-[0.78em] font-medium text-(--accent)',
+    date: 'text-[0.72em] font-medium text-neutral-500',
+    bullets: `mt-[0.35em] ${bullets}`,
+  },
 }
 
 export default function ModernTemplate({ resume, onChange, onAdd }: Props) {
   const { personal: p } = resume
-  const contacts = contactItems(p)
+  const contacts = contactItems(resume, onChange)
   const up = updaters(resume, onChange)
+  const skillStyle = up.levelStyle('skills')
 
   return (
     <div className="text-neutral-800">
@@ -39,13 +64,13 @@ export default function ModernTemplate({ resume, onChange, onAdd }: Props) {
         >
           {contacts.map((c) => (
             <span
-              key={c.field}
+              key={c.key}
               className={`flex items-center gap-[0.5em] ${c.text.trim() ? '' : 'print:hidden'}`}
             >
-              <Icon name={c.icon} className="h-[1.05em] w-[1.05em]" />
+              <Icon name={c.icon} className="contact-icon h-[1.05em] w-[1.05em]" />
               <EditableText
                 value={c.text}
-                onChange={up.personal(c.field)}
+                onChange={c.onChange}
                 placeholder={c.placeholder}
               />
             </span>
@@ -54,8 +79,14 @@ export default function ModernTemplate({ resume, onChange, onAdd }: Props) {
       </header>
 
       <div className="px-[12mm] py-[9mm]">
-        <section className={resume.summary ? '' : 'print:hidden'}>
-          <SectionHeading title="Profile" className="text-(--accent)" />
+        <section
+          hidden={!up.shown('summary')}
+          className={resume.summary ? '' : 'print:hidden'}
+        >
+          <SectionHeading
+            title={<EditableHeading {...up.title('summary', 'Profile')} />}
+            className="text-(--accent)"
+          />
           <EditableText
             as="p"
             multiline
@@ -66,8 +97,14 @@ export default function ModernTemplate({ resume, onChange, onAdd }: Props) {
           />
         </section>
 
-        <section className={`mt-[1.5em] ${resume.experience.length ? '' : 'print:hidden'}`}>
-          <SectionHeading title="Experience" className="text-(--accent)" />
+        <section
+          hidden={!up.shown('experience')}
+          className={`mt-[1.5em] ${resume.experience.length ? '' : 'print:hidden'}`}
+        >
+          <SectionHeading
+            title={<EditableHeading {...up.title('experience', 'Experience')} />}
+            className="text-(--accent)"
+          />
           <div className="mt-[0.9em]">
             {resume.experience.map((exp) => {
               const set = up.exp(exp.id)
@@ -126,9 +163,13 @@ export default function ModernTemplate({ resume, onChange, onAdd }: Props) {
         </section>
 
         <section
+          hidden={!up.shown('education')}
           className={`mt-[1.5em] break-inside-avoid ${resume.education.length ? '' : 'print:hidden'}`}
         >
-          <SectionHeading title="Education" className="text-(--accent)" />
+          <SectionHeading
+            title={<EditableHeading {...up.title('education', 'Education')} />}
+            className="text-(--accent)"
+          />
           <div className="mt-[0.8em] grid grid-cols-2 gap-x-[2em] gap-y-[0.9em]">
             {resume.education.map((edu) => {
               const set = up.edu(edu.id)
@@ -176,6 +217,7 @@ export default function ModernTemplate({ resume, onChange, onAdd }: Props) {
                       edu.description ? '' : 'print:hidden'
                     }`}
                   />
+                  <EducationLevel {...up.eduLevel(edu)} className="text-(--accent)" />
                 </div>
               )
             })}
@@ -184,18 +226,39 @@ export default function ModernTemplate({ resume, onChange, onAdd }: Props) {
         </section>
 
         <section
+          hidden={!up.shown('skills')}
           className={`mt-[1.5em] break-inside-avoid ${resume.skills.length ? '' : 'print:hidden'}`}
         >
-          <SectionHeading title="Skills" className="text-(--accent)" />
+          <SectionHeading
+            title={<EditableHeading {...up.title('skills', 'Skills')} />}
+            className="text-(--accent)"
+          />
           <div className="mt-[0.7em]">
-            <EditableChips
-              skills={resume.skills}
-              onChange={(v) => up.set('skills', v)}
-              onAdd={() => onAdd('skills')}
-              chipClassName="rounded-md bg-(--accent)/10 px-[0.8em] py-[0.3em] text-[0.78em] font-medium text-(--accent)"
-            />
+            {skillStyle === 'none' ? (
+              <EditableChips
+                skills={resume.skills}
+                onChange={up.list('skills')}
+                onAdd={() => onAdd('skills')}
+                chipClassName="rounded-md bg-(--accent)/10 px-[0.8em] py-[0.3em] text-[0.78em] font-medium text-(--accent)"
+              />
+            ) : (
+              <LevelList
+                {...up.levelList('skills')}
+                style={skillStyle}
+                theme={customTheme}
+                placeholder="Skill"
+              />
+            )}
           </div>
         </section>
+
+        <CustomSections
+          resume={resume}
+          onChange={onChange}
+          onAdd={onAdd}
+          column="all"
+          theme={customTheme}
+        />
       </div>
     </div>
   )

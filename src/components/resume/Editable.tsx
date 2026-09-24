@@ -240,7 +240,7 @@ export function EditableLines({
         <li
           key={i}
           data-line={i}
-          className={`min-h-[1em] ${lines.length === 0 ? 'print:hidden' : ''}`}
+          className={`min-h-[1em] ${line.trim() ? '' : 'print:hidden'}`}
         >
           <EditableText
             value={line}
@@ -263,11 +263,13 @@ export function EditableChips({
   onChange,
   chipClassName = '',
   onAdd,
+  placeholder = 'Skill',
 }: {
   skills: string[]
   onChange: (skills: string[]) => void
   chipClassName?: string
   onAdd?: () => void
+  placeholder?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -291,8 +293,8 @@ export function EditableChips({
           key={i}
           domProps={{ 'data-chip': String(i) }}
           value={s}
-          placeholder="Skill"
-          className={chipClassName}
+          placeholder={placeholder}
+          className={`${chipClassName} ${s.trim() ? '' : 'print:hidden'}`}
           onChange={(v) => setChip(i, v)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {

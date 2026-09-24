@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
 import type { ResumeData, SectionKind } from '../../types'
+import CustomSections, { type CustomTheme } from './CustomSections'
 import { EditableLines, EditableText } from './Editable'
-import { AddRow, Icon } from './shared'
+import { EducationLevel, LevelList } from './Level'
+import { AddRow, EditableHeading, Icon } from './shared'
 import {
   contactItems,
   endDatePatch,
@@ -12,10 +14,10 @@ import {
 interface Props {
   resume: ResumeData
   onChange: (r: ResumeData) => void
-  onAdd: (section: SectionKind) => void
+  onAdd: (section: SectionKind, sectionId?: string) => void
 }
 
-function RailHeading({ title }: { title: string }) {
+function RailHeading({ title }: { title: ReactNode }) {
   return (
     <div>
       <h2 className="text-[0.9em] font-bold tracking-[0.16em] uppercase text-(--accent)">
@@ -30,13 +32,17 @@ function MainSection({
   icon,
   title,
   children,
+  hidden,
+  className = '',
 }: {
   icon: SectionIcon
-  title: string
+  title: ReactNode
   children: ReactNode
+  hidden?: boolean
+  className?: string
 }) {
   return (
-    <section className="relative mb-[1.7em] last:mb-0">
+    <section hidden={hidden} className={`relative mb-[1.7em] last:mb-0 ${className}`}>
       <span className="absolute top-[0.05em] -left-[2.3em] flex h-[1.5em] w-[1.5em] items-center justify-center rounded-full bg-(--accent) text-white">
         <Icon name={icon} className="h-[0.9em] w-[0.9em]" />
       </span>
@@ -52,10 +58,52 @@ function MainSection({
   )
 }
 
+const railTheme: CustomTheme = {
+  section: ({ title, body, className }) => (
+    <div className={`mt-[1.8em] ${className}`}>
+      <RailHeading title={title} />
+      <div className="mt-[0.7em]">{body}</div>
+    </div>
+  ),
+  text: 'text-[0.78em] leading-snug',
+  bullets:
+    'list-disc space-y-[0.3em] pl-[1.3em] text-[0.78em] leading-snug marker:text-[0.6em]',
+  entry: {
+    wrap: 'mb-[0.9em] last:mb-0',
+    title: 'text-[0.82em] font-bold',
+    subtitle: 'text-[0.76em] text-neutral-600',
+    date: 'text-[0.7em] text-neutral-500',
+    bullets:
+      'mt-[0.2em] list-disc space-y-[0.1em] pl-[1.3em] text-[0.74em] leading-snug marker:text-[0.6em]',
+    stacked: true,
+  },
+}
+
+const mainTheme: CustomTheme = {
+  section: ({ title, body, className }) => (
+    <MainSection icon="star" title={title} className={className}>
+      {body}
+    </MainSection>
+  ),
+  text: 'text-[0.85em] leading-relaxed text-neutral-700',
+  bullets:
+    'list-disc space-y-[0.12em] pl-[1.4em] text-[0.82em] leading-relaxed text-neutral-700 marker:text-[0.55em]',
+  entry: {
+    wrap: 'mb-[1.1em] last:mb-0',
+    title: 'text-[0.92em] font-bold',
+    subtitle: 'text-[0.78em] text-neutral-500',
+    date: 'text-[0.72em] text-neutral-500',
+    bullets:
+      'mt-[0.3em] list-disc space-y-[0.12em] pl-[1.4em] text-[0.82em] leading-relaxed text-neutral-700 marker:text-[0.55em]',
+  },
+}
+
 export default function TimelineTemplate({ resume, onChange, onAdd }: Props) {
   const { personal: p } = resume
-  const contacts = contactItems(p)
+  const contacts = contactItems(resume, onChange)
   const up = updaters(resume, onChange)
+  const skillStyle = up.levelStyle('skills')
+  const langStyle = up.levelStyle('languages')
   const languages = resume.languages ?? []
 
   return (
@@ -87,18 +135,18 @@ export default function TimelineTemplate({ resume, onChange, onAdd }: Props) {
             <ul className="mt-[0.7em] space-y-[0.55em] text-[0.78em]">
               {contacts.map((c) => (
                 <li
-                  key={c.field}
+                  key={c.key}
                   className={`flex items-start gap-[0.6em] break-all ${
                     c.text.trim() ? '' : 'print:hidden'
                   }`}
                 >
                   <Icon
                     name={c.icon}
-                    className="mt-[0.1em] h-[1em] w-[1em] shrink-0 text-(--accent)"
+                    className="contact-icon mt-[0.1em] h-[1em] w-[1em] shrink-0 text-(--accent)"
                   />
                   <EditableText
                     value={c.text}
-                    onChange={up.personal(c.field)}
+                    onChange={c.onChange}
                     placeholder={c.placeholder}
                   />
                 </li>
@@ -106,25 +154,62 @@ export default function TimelineTemplate({ resume, onChange, onAdd }: Props) {
             </ul>
           </div>
 
-          <div className={`mt-[1.8em] ${resume.skills.length ? '' : 'print:hidden'}`}>
-            <RailHeading title="Skills" />
-            <EditableLines
-              lines={resume.skills}
-              onChange={(v) => up.set('skills', v)}
-              className="mt-[0.7em] list-disc space-y-[0.3em] pl-[1.3em] text-[0.78em] leading-snug marker:text-[0.6em]"
-              placeholder="Add a skill"
-            />
+          <div
+            hidden={!up.shown('skills')}
+            className={`mt-[1.8em] ${resume.skills.length ? '' : 'print:hidden'}`}
+          >
+            <RailHeading title={<EditableHeading {...up.title('skills', 'Skills')} />} />
+            {skillStyle === 'none' ? (
+              <EditableLines
+                lines={resume.skills}
+                onChange={up.list('skills')}
+                className="mt-[0.7em] list-disc space-y-[0.3em] pl-[1.3em] text-[0.78em] leading-snug marker:text-[0.6em]"
+                placeholder="Add a skill"
+              />
+            ) : (
+              <div className="mt-[0.7em]">
+                <LevelList
+                  {...up.levelList('skills')}
+                  style={skillStyle}
+                  theme={railTheme}
+                  placeholder="Skill"
+                />
+              </div>
+            )}
           </div>
 
-          <div className={`mt-[1.8em] ${languages.length ? '' : 'print:hidden'}`}>
-            <RailHeading title="Languages" />
-            <EditableLines
-              lines={languages}
-              onChange={(v) => up.set('languages', v)}
-              className="mt-[0.7em] list-disc space-y-[0.3em] pl-[1.3em] text-[0.78em] leading-snug marker:text-[0.6em]"
-              placeholder="Add a language"
-            />
+          <div
+            hidden={!up.shown('languages')}
+            className={`mt-[1.8em] ${languages.length ? '' : 'print:hidden'}`}
+          >
+            <RailHeading title={<EditableHeading {...up.title('languages', 'Languages')} />} />
+            {langStyle === 'none' ? (
+              <EditableLines
+                lines={languages}
+                onChange={up.list('languages')}
+                className="mt-[0.7em] list-disc space-y-[0.3em] pl-[1.3em] text-[0.78em] leading-snug marker:text-[0.6em]"
+                placeholder="Add a language"
+              />
+            ) : (
+              <div className="mt-[0.7em]">
+                <LevelList
+                  {...up.levelList('languages')}
+                  style={langStyle}
+                  theme={railTheme}
+                  placeholder="Language"
+                />
+              </div>
+            )}
           </div>
+
+          <CustomSections
+            resume={resume}
+            onChange={onChange}
+            onAdd={onAdd}
+            column="side"
+            theme={railTheme}
+            includeLanguages={false}
+          />
         </aside>
 
         <main className="flex-1 px-[8mm] py-[8mm]">
@@ -134,7 +219,11 @@ export default function TimelineTemplate({ resume, onChange, onAdd }: Props) {
               className="absolute top-[0.9em] bottom-[0.5em] left-[0.74em] w-px bg-neutral-300"
             />
 
-            <MainSection icon="user" title="Profile">
+            <MainSection
+              icon="user"
+              title={<EditableHeading {...up.title('summary', 'Profile')} />}
+              hidden={!up.shown('summary')}
+            >
               <div className={resume.summary ? '' : 'print:hidden'}>
                 <EditableText
                   as="p"
@@ -147,7 +236,11 @@ export default function TimelineTemplate({ resume, onChange, onAdd }: Props) {
               </div>
             </MainSection>
 
-            <MainSection icon="case" title="Experience">
+            <MainSection
+              icon="case"
+              title={<EditableHeading {...up.title('experience', 'Experience')} />}
+              hidden={!up.shown('experience')}
+            >
               <div className={resume.experience.length ? '' : 'print:hidden'}>
                 {resume.experience.map((exp) => {
                   const set = up.exp(exp.id)
@@ -201,7 +294,11 @@ export default function TimelineTemplate({ resume, onChange, onAdd }: Props) {
               </div>
             </MainSection>
 
-            <MainSection icon="cap" title="Education">
+            <MainSection
+              icon="cap"
+              title={<EditableHeading {...up.title('education', 'Education')} />}
+              hidden={!up.shown('education')}
+            >
               <div className={resume.education.length ? '' : 'print:hidden'}>
                 {resume.education.map((edu) => {
                   const set = up.edu(edu.id)
@@ -246,12 +343,21 @@ export default function TimelineTemplate({ resume, onChange, onAdd }: Props) {
                           edu.description ? '' : 'print:hidden'
                         }`}
                       />
+                      <EducationLevel {...up.eduLevel(edu)} className="text-(--accent)" />
                     </div>
                   )
                 })}
                 <AddRow label="Add education" onClick={() => onAdd('education')} />
               </div>
             </MainSection>
+
+            <CustomSections
+              resume={resume}
+              onChange={onChange}
+              onAdd={onAdd}
+              column="main"
+              theme={mainTheme}
+            />
           </div>
         </main>
       </div>

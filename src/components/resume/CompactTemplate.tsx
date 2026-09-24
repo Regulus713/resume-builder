@@ -1,15 +1,18 @@
+import type { ReactNode } from 'react'
 import type { ResumeData, SectionKind } from '../../types'
+import CustomSections, { type CustomTheme } from './CustomSections'
 import { EditableLines, EditableText } from './Editable'
-import { AddRow } from './shared'
+import { EducationLevel, LevelList } from './Level'
+import { AddRow, EditableHeading, OptionalContactIcon } from './shared'
 import { contactItems, endDatePatch, updaters } from './utils'
 
 interface Props {
   resume: ResumeData
   onChange: (r: ResumeData) => void
-  onAdd: (section: SectionKind) => void
+  onAdd: (section: SectionKind, sectionId?: string) => void
 }
 
-function CompactHeading({ title }: { title: string }) {
+function CompactHeading({ title }: { title: ReactNode }) {
   return (
     <h2 className="flex items-center gap-[0.8em] text-[0.7em] font-bold tracking-[0.14em] uppercase text-(--accent)">
       {title}
@@ -18,10 +21,32 @@ function CompactHeading({ title }: { title: string }) {
   )
 }
 
+const bullets =
+  'list-disc space-y-[0.05em] pl-[1.2em] text-[0.8em] leading-snug text-neutral-600 marker:text-neutral-400'
+
+const customTheme: CustomTheme = {
+  section: ({ title, body, className }) => (
+    <section className={`mt-[1em] ${className}`}>
+      <CompactHeading title={title} />
+      <div className="mt-[0.5em]">{body}</div>
+    </section>
+  ),
+  text: 'text-[0.82em] leading-snug text-neutral-700',
+  bullets,
+  entry: {
+    wrap: 'mb-[0.8em] last:mb-0',
+    title: 'text-[0.88em] font-semibold',
+    subtitle: 'text-[0.82em] text-(--accent)',
+    date: 'text-[0.7em] text-neutral-500',
+    bullets: `mt-[0.2em] ${bullets}`,
+  },
+}
+
 export default function CompactTemplate({ resume, onChange, onAdd }: Props) {
   const { personal: p } = resume
-  const contacts = contactItems(p)
+  const contacts = contactItems(resume, onChange)
   const up = updaters(resume, onChange)
+  const skillStyle = up.levelStyle('skills')
 
   return (
     <div className="px-[12mm] py-[10mm] text-neutral-800">
@@ -49,18 +74,25 @@ export default function CompactTemplate({ resume, onChange, onAdd }: Props) {
           }`}
         >
           {contacts.map((c) => (
-            <EditableText
-              key={c.field}
-              value={c.text}
-              onChange={up.personal(c.field)}
-              placeholder={c.placeholder}
-              className={c.text.trim() ? '' : 'print:hidden'}
-            />
+            <span
+              key={c.key}
+              className={`inline-flex items-center gap-[0.4em] ${c.text.trim() ? '' : 'print:hidden'}`}
+            >
+              <OptionalContactIcon name={c.icon} />
+              <EditableText
+                value={c.text}
+                onChange={c.onChange}
+                placeholder={c.placeholder}
+              />
+            </span>
           ))}
         </div>
       </header>
 
-      <section className={`mt-[1em] ${resume.summary ? '' : 'print:hidden'}`}>
+      <section
+        hidden={!up.shown('summary')}
+        className={`mt-[1em] ${resume.summary ? '' : 'print:hidden'}`}
+      >
         <EditableText
           as="p"
           multiline
@@ -71,8 +103,11 @@ export default function CompactTemplate({ resume, onChange, onAdd }: Props) {
         />
       </section>
 
-      <section className={`mt-[1em] ${resume.experience.length ? '' : 'print:hidden'}`}>
-        <CompactHeading title="Experience" />
+      <section
+        hidden={!up.shown('experience')}
+        className={`mt-[1em] ${resume.experience.length ? '' : 'print:hidden'}`}
+      >
+        <CompactHeading title={<EditableHeading {...up.title('experience', 'Experience')} />} />
         <div className="mt-[0.5em]">
           {resume.experience.map((exp) => {
             const set = up.exp(exp.id)
@@ -127,8 +162,11 @@ export default function CompactTemplate({ resume, onChange, onAdd }: Props) {
         </div>
       </section>
 
-      <section className={`mt-[1em] ${resume.education.length ? '' : 'print:hidden'}`}>
-        <CompactHeading title="Education" />
+      <section
+        hidden={!up.shown('education')}
+        className={`mt-[1em] ${resume.education.length ? '' : 'print:hidden'}`}
+      >
+        <CompactHeading title={<EditableHeading {...up.title('education', 'Education')} />} />
         <div className="mt-[0.5em]">
           {resume.education.map((edu) => {
             const set = up.edu(edu.id)
@@ -179,6 +217,7 @@ export default function CompactTemplate({ resume, onChange, onAdd }: Props) {
                     edu.description ? '' : 'print:hidden'
                   }`}
                 />
+                <EducationLevel {...up.eduLevel(edu)} className="text-(--accent)" />
               </div>
             )
           })}
@@ -187,26 +226,45 @@ export default function CompactTemplate({ resume, onChange, onAdd }: Props) {
       </section>
 
       <section
+        hidden={!up.shown('skills')}
         className={`mt-[1em] break-inside-avoid ${resume.skills.length ? '' : 'print:hidden'}`}
       >
-        <CompactHeading title="Skills" />
-        <EditableText
-          as="p"
-          multiline
-          value={resume.skills.join(' · ')}
-          onChange={(v) =>
-            up.set(
-              'skills',
-              v
-                .split(/[·,\n]+/)
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
-          }
-          placeholder="TypeScript · React · Node.js…"
-          className="mt-[0.4em] block text-[0.8em] leading-snug whitespace-pre-line text-neutral-600"
-        />
+        <CompactHeading title={<EditableHeading {...up.title('skills', 'Skills')} />} />
+        {skillStyle === 'none' ? (
+          <EditableText
+            as="p"
+            multiline
+            value={resume.skills.join(' · ')}
+            onChange={(v) =>
+              up.list('skills')(
+                v
+                  .split(/[·,\n]+/)
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              )
+            }
+            placeholder="TypeScript · React · Node.js…"
+            className="mt-[0.4em] block text-[0.8em] leading-snug whitespace-pre-line text-neutral-600"
+          />
+        ) : (
+          <div className="mt-[0.4em]">
+            <LevelList
+              {...up.levelList('skills')}
+              style={skillStyle}
+              theme={customTheme}
+              placeholder="Skill"
+            />
+          </div>
+        )}
       </section>
+
+      <CustomSections
+        resume={resume}
+        onChange={onChange}
+        onAdd={onAdd}
+        column="all"
+        theme={customTheme}
+      />
     </div>
   )
 }

@@ -1,6 +1,36 @@
-import { ICON_PATHS, type IconName } from './utils'
+import type { ReactNode } from 'react'
+import { EditableText } from './Editable'
+import { BRAND_ICONS } from './brandIcons'
+import { ICON_PATHS, isBrandIcon, type IconName } from './utils'
+
+/**
+ * Renamable built-in section heading. Pass `up.title(id, 'Default')`.
+ * Clearing the text restores the template's default heading.
+ */
+export function EditableHeading({
+  value,
+  fallback,
+  onChange,
+}: {
+  value: string
+  fallback: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <EditableText value={value || fallback} placeholder={fallback} onChange={onChange} />
+  )
+}
 
 export function Icon({ name, className }: { name: IconName; className?: string }) {
+  if (isBrandIcon(name)) {
+    // Brand logos are solid and fill their box; the padded viewBox evens out
+    // their visual weight next to the outline icons.
+    return (
+      <svg viewBox="-2 -2 28 28" fill="currentColor" className={className} aria-hidden>
+        <path d={BRAND_ICONS[name].path} />
+      </svg>
+    )
+  }
   return (
     <svg
       viewBox="0 0 24 24"
@@ -13,6 +43,16 @@ export function Icon({ name, className }: { name: IconName; className?: string }
     >
       <path d={ICON_PATHS[name]} />
     </svg>
+  )
+}
+
+/**
+ * Contact icon for templates designed without icons — hidden unless
+ * Design → Contact icons is set to "Show" (see `.contact-icon-optional`).
+ */
+export function OptionalContactIcon({ name }: { name: IconName }) {
+  return (
+    <Icon name={name} className="contact-icon contact-icon-optional h-[1em] w-[1em] shrink-0" />
   )
 }
 
@@ -43,7 +83,7 @@ export function SectionHeading({
   title,
   className = '',
 }: {
-  title: string
+  title: ReactNode
   className?: string
 }) {
   return (

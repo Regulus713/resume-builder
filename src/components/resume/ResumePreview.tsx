@@ -42,7 +42,7 @@ export default function ResumePreview({
   resume: ResumeData
   design: DesignOptions
   onChange: (r: ResumeData) => void
-  onAdd: (section: SectionKind) => void
+  onAdd: (section: SectionKind, sectionId?: string) => void
 }) {
   const Template = TEMPLATES[design.template]
   const dims = PAGE_DIMS[design.pageSize]
@@ -56,7 +56,7 @@ export default function ResumePreview({
   } as CSSProperties
 
   return (
-    <div className="resume-page" style={style}>
+    <div className="resume-page" style={style} data-contact-icons={design.contactIcons}>
       <Template resume={resume} onChange={onChange} onAdd={onAdd} />
     </div>
   )

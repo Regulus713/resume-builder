@@ -27,7 +27,62 @@ export interface EducationItem {
   startDate: string
   endDate: string
   description: string
+  /** Progress 1–5 (0/undefined = not set), shown when a level style is chosen. */
+  level?: number
 }
+
+/** How 1–5 levels are drawn; "none" shows plain text only. */
+export type LevelStyle = 'none' | 'stars' | 'dots' | 'bar' | 'blocks' | 'text'
+/** Built-in sections that support levels. */
+export type LevelSection = 'skills' | 'languages' | 'education'
+/** Built-in string lists whose items can carry levels. */
+export type LevelListId = 'skills' | 'languages'
+
+/** User-defined contact field shown next to email/phone (e.g. GitHub). */
+export interface CustomField {
+  id: string
+  label: string
+  value: string
+}
+
+export type CustomSectionType = 'tags' | 'bullets' | 'entries' | 'text'
+/** Where a custom section goes in two-column templates. */
+export type SectionColumn = 'main' | 'side'
+
+export interface CustomEntry {
+  id: string
+  title: string
+  subtitle: string
+  date: string
+  /** One bullet per line. */
+  description: string
+}
+
+/**
+ * A user-created section. Every content kind is stored side by side so
+ * switching `type` is lossless; only the active kind is rendered.
+ */
+export interface CustomSection {
+  id: string
+  title: string
+  type: CustomSectionType
+  column: SectionColumn
+  hidden: boolean
+  items: string[]
+  entries: CustomEntry[]
+  text: string
+  /** Level display for tag/bullet items (optional: older saves lack it). */
+  levelStyle?: LevelStyle
+  /** Item text → level 1–5. */
+  levels?: Record<string, number>
+}
+
+export type BuiltinSectionId =
+  | 'summary'
+  | 'experience'
+  | 'education'
+  | 'skills'
+  | 'languages'
 
 export interface ResumeData {
   personal: PersonalInfo
@@ -36,6 +91,20 @@ export interface ResumeData {
   education: EducationItem[]
   skills: string[]
   languages: string[]
+  customFields: CustomField[]
+  customSections: CustomSection[]
+  /** Heading overrides for built-in sections; empty/missing = template default. */
+  sectionTitles: Partial<Record<BuiltinSectionId, string>>
+  hiddenSections: BuiltinSectionId[]
+  /**
+   * Icon overrides per contact item, keyed by built-in field name (e.g.
+   * "email") or custom field id. Missing = auto-detected from label/value.
+   */
+  contactIcons: Record<string, string>
+  /** Per-list item levels 1–5, keyed by (trimmed) item text. */
+  levels: Partial<Record<LevelListId, Record<string, number>>>
+  /** Level display per section; missing = "none". */
+  levelStyles: Partial<Record<LevelSection, LevelStyle>>
 }
 
 export type TemplateId =
@@ -53,6 +122,8 @@ export type TemplateId =
 export type FontId = 'inter' | 'serif' | 'georgia' | 'mono'
 export type FontSize = 'sm' | 'md' | 'lg'
 export type PageSize = 'a4' | 'letter'
+/** "template": only templates designed with icons show them. */
+export type ContactIconMode = 'template' | 'show' | 'hide'
 
 export interface DesignOptions {
   template: TemplateId
@@ -60,6 +131,7 @@ export interface DesignOptions {
   font: FontId
   fontSize: FontSize
   pageSize: PageSize
+  contactIcons: ContactIconMode
 }
 
 export const FONT_STACKS: Record<FontId, string> = {
@@ -87,11 +159,13 @@ export const PAGE_DIMS: Record<PageSize, { width: string; height: string }> = {
   letter: { width: '8.5in', height: '11in' },
 }
 
-export type SectionKind = 'experience' | 'education' | 'skills'
+export type SectionKind = 'experience' | 'education' | 'skills' | 'custom'
 
 /** Sidebar target to reveal after adding from the preview. */
 export type FocusTarget = {
   kind: SectionKind
+  /** Custom section id when `kind === 'custom'`. */
+  sectionId?: string
   id?: string
 } | null
 
